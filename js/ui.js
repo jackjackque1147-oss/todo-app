@@ -9,7 +9,7 @@ const UIController = (() => {
   let activeFilterPriority = 'All';
   let activeSort = 'recently-created';
 
-  // Temporary container for subtasks while creating/editing a task in the modal
+  // Temporary container for subtasks inside creation/edit modal
   let modalSteps = [];
 
   const viewContainer = document.getElementById('view-container');
@@ -29,25 +29,35 @@ const UIController = (() => {
       });
     });
 
-    document.getElementById('global-search').addEventListener('input', (e) => {
-      activeSearch = e.target.value.toLowerCase();
-      renderCurrentView();
-    });
+    const searchInput = document.getElementById('global-search');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        activeSearch = e.target.value.toLowerCase();
+        renderCurrentView();
+      });
+    }
 
-    document.getElementById('quick-add-btn').addEventListener('click', () => openTaskModal());
-    document.getElementById('mobile-add-btn').addEventListener('click', () => openTaskModal());
+    const quickAddBtn = document.getElementById('quick-add-btn');
+    if (quickAddBtn) quickAddBtn.addEventListener('click', () => openTaskModal());
 
-    modalOverlay.addEventListener('click', (e) => {
-      if (e.target === modalOverlay) closeModal();
-    });
+    const mobileAddBtn = document.getElementById('mobile-add-btn');
+    if (mobileAddBtn) mobileAddBtn.addEventListener('click', () => openTaskModal());
+
+    if (modalOverlay) {
+      modalOverlay.addEventListener('click', (e) => {
+        if (e.target === modalOverlay) closeModal();
+      });
+    }
   }
 
   function renderCategoryList() {
     const catContainer = document.getElementById('category-list');
+    if (!catContainer) return;
+
     const categories = TaskManager.getCategories();
     catContainer.innerHTML = categories.map(cat => `
-      <div class="cat-item ${activeCategory === cat ? 'active' : ''}" onclick="UIController.filterByCategory('${cat}')">
-        <span>${cat}</span>
+      <div class="cat-item ${activeCategory === cat ? 'active' : ''}" onclick="UIController.filterByCategory('${escapeHtml(cat)}')">
+        <span>${escapeHtml(cat)}</span>
       </div>
     `).join('');
   }
@@ -104,9 +114,9 @@ const UIController = (() => {
       if (activeFilterPriority !== 'All' && t.priority !== activeFilterPriority) return false;
       if (activeSearch) {
         const q = activeSearch;
-        const inTitle = t.title.toLowerCase().includes(q);
+        const inTitle = (t.title || '').toLowerCase().includes(q);
         const inDesc = (t.description || '').toLowerCase().includes(q);
-        const inNotes = (t.contents || '').toLowerCase().includes(q);
+        const inNotes = (t.contents || t.notes || '').toLowerCase().includes(q);
         const inCategory = (t.category || '').toLowerCase().includes(q);
         const inSteps = (t.nextSteps || []).some(s => s.text.toLowerCase().includes(q));
         if (!inTitle && !inDesc && !inNotes && !inCategory && !inSteps) return false;
@@ -119,7 +129,7 @@ const UIController = (() => {
         const pMap = { Urgent: 4, High: 3, Medium: 2, Low: 1 };
         return pMap[b.priority] - pMap[a.priority];
       }
-      if (activeSort === 'alphabetical') return a.title.localeCompare(b.title);
+      if (activeSort === 'alphabetical') return (a.title || '').localeCompare(b.title || '');
       return 0;
     });
   }
@@ -207,7 +217,7 @@ const UIController = (() => {
     const borderClass = task.priority === 'Urgent' ? 'border-urgent' : (task.priority === 'High' ? 'border-high' : '');
     const steps = task.nextSteps || [];
     const completedStepsCount = steps.filter(s => s.completed).length;
-    const effectiveProgress = TaskManager.calculateStepsProgress ? TaskManager.calculateStepsProgress(steps) : (task.progress || 0);
+    const effectiveProgress = TaskManager.calculateStepsProgress(steps);
 
     const pendingStep = steps.find(s => !s.completed);
 
@@ -215,7 +225,7 @@ const UIController = (() => {
       <div class="task-card ${borderClass}" onclick="UIController.openTaskDetails('${task.id}')">
         <div class="task-header">
           <div class="task-title">${escapeHtml(task.title)}</div>
-          <span class="badge badge-status">${task.status}</span>
+          <span class="badge badge-status">${escapeHtml(task.status)}</span>
         </div>
         
         ${task.description ? `<p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:8px;">${escapeHtml(task.description)}</p>` : ''}
@@ -274,7 +284,7 @@ const UIController = (() => {
 
     const steps = task.nextSteps || [];
     const completedCount = steps.filter(s => s.completed).length;
-    const progress = TaskManager.calculateStepsProgress ? TaskManager.calculateStepsProgress(steps) : (task.progress || 0);
+    const progress = TaskManager.calculateStepsProgress(steps);
 
     modalContent.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
@@ -283,9 +293,9 @@ const UIController = (() => {
       </div>
 
       <div style="display:flex; gap:8px; margin-bottom:16px;">
-        <span class="badge badge-status">${task.status}</span>
-        <span class="badge" style="background:var(--border-color);">${task.priority} Priority</span>
-        <span class="badge" style="background:var(--border-color);">${task.category}</span>
+        <span class="badge badge-status">${escapeHtml(task.status)}</span>
+        <span class="badge" style="background:var(--border-color);">${escapeHtml(task.priority)} Priority</span>
+        <span class="badge" style="background:var(--border-color);">${escapeHtml(task.category)}</span>
       </div>
 
       <div style="margin-bottom:16px;">
@@ -342,9 +352,7 @@ const UIController = (() => {
   }
 
   async function toggleStepItem(taskId, stepId) {
-    if (TaskManager.toggleStep) {
-      await TaskManager.toggleStep(taskId, stepId);
-    }
+    await TaskManager.toggleStep(taskId, stepId);
     openTaskDetails(taskId);
     renderCurrentView();
   }
@@ -353,7 +361,7 @@ const UIController = (() => {
     let task = taskId ? await StorageManager.getTask(taskId) : TaskManager.createNewTaskObject();
     const categories = TaskManager.getCategories();
 
-    // Populate subtask list; add one blank input line if task currently has none
+    // Populate modalSteps with existing tasks or start with one empty input field
     modalSteps = (task.nextSteps && task.nextSteps.length > 0)
       ? task.nextSteps.map(s => ({ ...s }))
       : [{ id: 'step_' + Date.now() + '_0', text: '', completed: false }];
@@ -376,7 +384,7 @@ const UIController = (() => {
           <div class="form-group">
             <label>Category</label>
             <select id="form-category" class="form-control">
-              ${categories.map(c => `<option value="${c}" ${task.category === c ? 'selected' : ''}>${c}</option>`).join('')}
+              ${categories.map(c => `<option value="${escapeHtml(c)}" ${task.category === c ? 'selected' : ''}>${escapeHtml(c)}</option>`).join('')}
             </select>
           </div>
           <div class="form-group">
@@ -474,31 +482,38 @@ const UIController = (() => {
   async function saveTaskForm(e, taskId) {
     e.preventDefault();
     let task = await StorageManager.getTask(taskId);
-    if (!task) task = TaskManager.createNewTaskObject({ id: taskId });
 
-    // Read values directly from DOM inputs
+    // Sync input values from the DOM into step structure
     syncModalStepsFromDOM();
-    task.nextSteps = modalSteps.filter(s => s.text.trim() !== '');
 
-    task.title = document.getElementById('form-title').value;
-    task.category = document.getElementById('form-category').value;
-    task.priority = document.getElementById('form-priority').value;
-    task.status = document.getElementById('form-status').value;
-    task.dueDate = document.getElementById('form-dueDate').value;
-    task.description = document.getElementById('form-description').value;
-    task.contents = document.getElementById('form-contents').value;
-    task.updatedDate = new Date().toISOString();
+    const formTitle = document.getElementById('form-title').value;
+    const formCategory = document.getElementById('form-category').value;
+    const formPriority = document.getElementById('form-priority').value;
+    const formStatus = document.getElementById('form-status').value;
+    const formDueDate = document.getElementById('form-dueDate').value;
+    const formDescription = document.getElementById('form-description').value;
+    const formContents = document.getElementById('form-contents').value;
 
-    if (TaskManager.calculateStepsProgress) {
-      task.progress = TaskManager.calculateStepsProgress(task.nextSteps);
-    }
+    const formattedSteps = modalSteps.filter(s => s.text.trim() !== '');
 
-    if (task.status === 'Completed' && !task.completedDate) {
-      task.completedDate = new Date().toISOString();
-      task.progress = 100;
-    }
+    const taskData = {
+      id: taskId,
+      title: formTitle,
+      category: formCategory,
+      priority: formPriority,
+      status: formStatus,
+      dueDate: formDueDate,
+      description: formDescription,
+      contents: formContents,
+      nextSteps: formattedSteps,
+      createdDate: task ? task.createdDate : new Date().toISOString(),
+      completedDate: (formStatus === 'Completed') ? (task?.completedDate || new Date().toISOString()) : null
+    };
 
-    await StorageManager.updateTask(task);
+    // Use task builder to enforce normalized properties and calculate initial progress
+    const updatedTask = TaskManager.createNewTaskObject(taskData);
+
+    await StorageManager.updateTask(updatedTask);
     closeModal();
     renderCurrentView();
   }
@@ -564,6 +579,7 @@ const UIController = (() => {
   }
 
   function setTheme(theme) {
+    localStorage.getItem('todo_theme');
     localStorage.setItem('todo_theme', theme);
     document.documentElement.setAttribute('data-theme', theme);
   }
