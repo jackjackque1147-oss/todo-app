@@ -27,17 +27,19 @@ const PWAController = (() => {
       deferredPrompt = e;
       if (installBtn) {
         installBtn.classList.remove('hidden');
-        installBtn.addEventListener('click', async () => {
-          installBtn.classList.add('hidden');
-          if (deferredPrompt) {
-            deferredPrompt.prompt();
-            const { outcome } = await deferredPrompt.userChoice;
-            console.log(`User prompt outcome: ${outcome}`);
-            deferredPrompt = null;
-          }
-        });
       }
     });
+
+    if (installBtn) {
+      installBtn.addEventListener('click', async () => {
+        if (!deferredPrompt) return;
+        installBtn.classList.add('hidden');
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        console.log(`User prompt outcome: ${outcome}`);
+        deferredPrompt = null;
+      });
+    }
 
     window.addEventListener('appinstalled', () => {
       if (installBtn) installBtn.classList.add('hidden');
@@ -48,3 +50,6 @@ const PWAController = (() => {
 
   return { init };
 })();
+
+// Automatically initialize when pwa.js loads
+PWAController.init();
