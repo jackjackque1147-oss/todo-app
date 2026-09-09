@@ -105,9 +105,9 @@ const UIController = (() => {
       if (activeSearch) {
         const q = activeSearch;
         const inTitle = t.title.toLowerCase().includes(q);
-        const inDesc = t.description.toLowerCase().includes(q);
-        const inNotes = (t.notes || '').toLowerCase().includes(q);
-        const inCategory = t.category.toLowerCase().includes(q);
+        const inDesc = (t.description || '').toLowerCase().includes(q);
+        const inNotes = (t.contents || '').toLowerCase().includes(q);
+        const inCategory = (t.category || '').toLowerCase().includes(q);
         const inSteps = (t.nextSteps || []).some(s => s.text.toLowerCase().includes(q));
         if (!inTitle && !inDesc && !inNotes && !inCategory && !inSteps) return false;
       }
@@ -207,7 +207,7 @@ const UIController = (() => {
     const borderClass = task.priority === 'Urgent' ? 'border-urgent' : (task.priority === 'High' ? 'border-high' : '');
     const steps = task.nextSteps || [];
     const completedStepsCount = steps.filter(s => s.completed).length;
-    const effectiveProgress = TaskManager.calculateStepsProgress ? TaskManager.calculateStepsProgress(steps) : task.progress;
+    const effectiveProgress = TaskManager.calculateStepsProgress ? TaskManager.calculateStepsProgress(steps) : (task.progress || 0);
 
     const pendingStep = steps.find(s => !s.completed);
 
@@ -274,7 +274,7 @@ const UIController = (() => {
 
     const steps = task.nextSteps || [];
     const completedCount = steps.filter(s => s.completed).length;
-    const progress = TaskManager.calculateStepsProgress ? TaskManager.calculateStepsProgress(steps) : task.progress;
+    const progress = TaskManager.calculateStepsProgress ? TaskManager.calculateStepsProgress(steps) : (task.progress || 0);
 
     modalContent.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
@@ -353,15 +353,17 @@ const UIController = (() => {
     let task = taskId ? await StorageManager.getTask(taskId) : TaskManager.createNewTaskObject();
     const categories = TaskManager.getCategories();
 
-    // Clone step data to prevent direct state mutation before explicit save
-    modalSteps = (task.nextSteps || []).map(s => ({ ...s }));
+    // Populate subtask list; add one blank input line if task currently has none
+    modalSteps = (task.nextSteps && task.nextSteps.length > 0)
+      ? task.nextSteps.map(s => ({ ...s }))
+      : [{ id: 'step_' + Date.now() + '_0', text: '', completed: false }];
 
     modalContent.innerHTML = `
       <h2>${taskId ? 'Edit Task' : 'New Task'}</h2>
       <form id="task-form" onsubmit="UIController.saveTaskForm(event, '${task.id}')">
         <div class="form-group">
           <label>Title *</label>
-          <input type="text" id="form-title" class="form-control" value="${escapeHtml(task.title)}" required>
+          <input type="text" id="form-title" class="form-control" value="${escapeHtml(task.title || '')}" required>
         </div>
 
         <div class="form-group">
@@ -381,7 +383,7 @@ const UIController = (() => {
             <label>Priority</label>
             <select id="form-priority" class="form-control">
               <option value="Low" ${task.priority === 'Low' ? 'selected' : ''}>Low</option>
-              <option value="Medium" ${task.priority === 'Medium' ? 'selected' : ''}>Medium</option>
+              <option value="Medium" ${task.priority === 'Medium' || !task.priority ? 'selected' : ''}>Medium</option>
               <option value="High" ${task.priority === 'High' ? 'selected' : ''}>High</option>
               <option value="Urgent" ${task.priority === 'Urgent' ? 'selected' : ''}>Urgent</option>
             </select>
@@ -392,7 +394,7 @@ const UIController = (() => {
           <div class="form-group">
             <label>Status</label>
             <select id="form-status" class="form-control">
-              <option value="Inbox" ${task.status === 'Inbox' ? 'selected' : ''}>Inbox</option>
+              <option value="Inbox" ${task.status === 'Inbox' || !task.status ? 'selected' : ''}>Inbox</option>
               <option value="Next" ${task.status === 'Next' ? 'selected' : ''}>Next</option>
               <option value="In Progress" ${task.status === 'In Progress' ? 'selected' : ''}>In Progress</option>
               <option value="Waiting" ${task.status === 'Waiting' ? 'selected' : ''}>Waiting</option>
@@ -401,18 +403,18 @@ const UIController = (() => {
           </div>
           <div class="form-group">
             <label>Due Date</label>
-            <input type="date" id="form-dueDate" class="form-control" value="${task.dueDate}">
+            <input type="date" id="form-dueDate" class="form-control" value="${task.dueDate || ''}">
           </div>
         </div>
 
         <div class="form-group">
           <label>Description</label>
-          <textarea id="form-description" class="form-control" rows="2">${escapeHtml(task.description)}</textarea>
+          <textarea id="form-description" class="form-control" rows="2">${escapeHtml(task.description || '')}</textarea>
         </div>
 
         <div class="form-group">
           <label>Contents / Detailed Notes</label>
-          <textarea id="form-contents" class="form-control" rows="3">${escapeHtml(task.contents)}</textarea>
+          <textarea id="form-contents" class="form-control" rows="3">${escapeHtml(task.contents || '')}</textarea>
         </div>
 
         <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:20px;">
@@ -424,6 +426,15 @@ const UIController = (() => {
 
     renderModalSteps();
     modalOverlay.classList.remove('hidden');
+  }
+
+  function syncModalStepsFromDOM() {
+    const stepInputs = document.querySelectorAll('#modal-steps-list input');
+    stepInputs.forEach((input, idx) => {
+      if (modalSteps[idx]) {
+        modalSteps[idx].text = input.value;
+      }
+    });
   }
 
   function renderModalSteps() {
@@ -439,7 +450,12 @@ const UIController = (() => {
   }
 
   function addModalStepInput() {
-    modalSteps.push({ id: 'step_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4), text: '', completed: false });
+    syncModalStepsFromDOM();
+    modalSteps.push({
+      id: 'step_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+      text: '',
+      completed: false
+    });
     renderModalSteps();
   }
 
@@ -450,6 +466,7 @@ const UIController = (() => {
   }
 
   function removeModalStep(index) {
+    syncModalStepsFromDOM();
     modalSteps.splice(index, 1);
     renderModalSteps();
   }
@@ -459,8 +476,11 @@ const UIController = (() => {
     let task = await StorageManager.getTask(taskId);
     if (!task) task = TaskManager.createNewTaskObject({ id: taskId });
 
-    task.title = document.getElementById('form-title').value;
+    // Read values directly from DOM inputs
+    syncModalStepsFromDOM();
     task.nextSteps = modalSteps.filter(s => s.text.trim() !== '');
+
+    task.title = document.getElementById('form-title').value;
     task.category = document.getElementById('form-category').value;
     task.priority = document.getElementById('form-priority').value;
     task.status = document.getElementById('form-status').value;
