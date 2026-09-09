@@ -9,6 +9,9 @@ const UIController = (() => {
   let activeFilterPriority = 'All';
   let activeSort = 'recently-created';
 
+  // Temporary container for subtasks while creating/editing a task in the modal
+  let modalSteps = [];
+
   const viewContainer = document.getElementById('view-container');
   const modalOverlay = document.getElementById('modal-overlay');
   const modalContent = document.getElementById('modal-content');
@@ -80,7 +83,7 @@ const UIController = (() => {
         renderTaskListView('All Tasks', filteredTasks);
         break;
       case 'next-actions':
-        renderTaskListView('Next Actions', filteredTasks.filter(t => t.nextStep && t.status !== 'Completed' && t.status !== 'Archived'));
+        renderTaskListView('Next Actions', filteredTasks.filter(t => t.nextSteps && t.nextSteps.some(s => !s.completed) && t.status !== 'Completed' && t.status !== 'Archived'));
         break;
       case 'completed':
         renderTaskListView('Completed Tasks', filteredTasks.filter(t => t.status === 'Completed'));
@@ -103,10 +106,10 @@ const UIController = (() => {
         const q = activeSearch;
         const inTitle = t.title.toLowerCase().includes(q);
         const inDesc = t.description.toLowerCase().includes(q);
-        const inNext = t.nextStep.toLowerCase().includes(q);
-        const inNotes = t.notes.toLowerCase().includes(q);
+        const inNotes = (t.notes || '').toLowerCase().includes(q);
         const inCategory = t.category.toLowerCase().includes(q);
-        if (!inTitle && !inDesc && !inNext && !inNotes && !inCategory) return false;
+        const inSteps = (t.nextSteps || []).some(s => s.text.toLowerCase().includes(q));
+        if (!inTitle && !inDesc && !inNotes && !inCategory && !inSteps) return false;
       }
       return true;
     }).sort((a, b) => {
@@ -123,12 +126,12 @@ const UIController = (() => {
 
   function renderDashboard(allTasks, filteredTasks) {
     const total = allTasks.filter(t => t.status !== 'Archived').length;
-    const nextActionsCount = allTasks.filter(t => t.nextStep && t.status !== 'Completed' && t.status !== 'Archived').length;
+    const nextActionsCount = allTasks.filter(t => t.nextSteps && t.nextSteps.some(s => !s.completed) && t.status !== 'Completed' && t.status !== 'Archived').length;
     const inProgressCount = allTasks.filter(t => t.status === 'In Progress').length;
     const completedCount = allTasks.filter(t => t.status === 'Completed').length;
     const overdueCount = allTasks.filter(t => TaskManager.isOverdue(t)).length;
 
-    const nextActionsList = allTasks.filter(t => t.nextStep && t.status !== 'Completed' && t.status !== 'Archived').slice(0, 5);
+    const nextActionsList = allTasks.filter(t => t.nextSteps && t.nextSteps.some(s => !s.completed) && t.status !== 'Completed' && t.status !== 'Archived').slice(0, 5);
 
     viewContainer.innerHTML = `
       <div class="dashboard-grid">
@@ -202,8 +205,11 @@ const UIController = (() => {
   function renderTaskCard(task) {
     const isOverdue = TaskManager.isOverdue(task);
     const borderClass = task.priority === 'Urgent' ? 'border-urgent' : (task.priority === 'High' ? 'border-high' : '');
-    const checklistProgress = TaskManager.calculateChecklistProgress(task.checklist);
-    const effectiveProgress = checklistProgress !== null ? checklistProgress : task.progress;
+    const steps = task.nextSteps || [];
+    const completedStepsCount = steps.filter(s => s.completed).length;
+    const effectiveProgress = TaskManager.calculateStepsProgress ? TaskManager.calculateStepsProgress(steps) : task.progress;
+
+    const pendingStep = steps.find(s => !s.completed);
 
     return `
       <div class="task-card ${borderClass}" onclick="UIController.openTaskDetails('${task.id}')">
@@ -212,18 +218,18 @@ const UIController = (() => {
           <span class="badge badge-status">${task.status}</span>
         </div>
         
-        ${task.description ? `<p style="font-size:0.85rem; color:var(--text-secondary); line-clamp: 2;">${escapeHtml(task.description)}</p>` : ''}
+        ${task.description ? `<p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:8px;">${escapeHtml(task.description)}</p>` : ''}
         
-        ${task.nextStep ? `
+        ${pendingStep ? `
           <div class="task-next-step">
             <div class="next-step-label">NEXT STEP</div>
-            <div>${escapeHtml(task.nextStep)}</div>
+            <div>${escapeHtml(pendingStep.text)}</div>
           </div>
         ` : ''}
 
-        <div>
+        <div style="margin-top: 8px;">
           <div style="display:flex; justify-content:space-between; font-size:0.75rem; color:var(--text-secondary);">
-            <span>Progress</span>
+            <span>Progress (${completedStepsCount}/${steps.length})</span>
             <span>${effectiveProgress}%</span>
           </div>
           <div class="progress-bar-container">
@@ -266,6 +272,10 @@ const UIController = (() => {
     const task = await StorageManager.getTask(id);
     if (!task) return;
 
+    const steps = task.nextSteps || [];
+    const completedCount = steps.filter(s => s.completed).length;
+    const progress = TaskManager.calculateStepsProgress ? TaskManager.calculateStepsProgress(steps) : task.progress;
+
     modalContent.innerHTML = `
       <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
         <h2>${escapeHtml(task.title)}</h2>
@@ -283,10 +293,27 @@ const UIController = (() => {
         <p style="color:var(--text-secondary);">${escapeHtml(task.description || 'None')}</p>
       </div>
 
-      ${task.nextStep ? `
-        <div class="task-next-step" style="margin-bottom:16px;">
-          <div class="next-step-label">NEXT STEP</div>
-          <div style="font-size:1rem; font-weight:600;">${escapeHtml(task.nextStep)}</div>
+      <div style="margin-bottom:16px;">
+        <div style="display:flex; justify-content:space-between; font-size:0.85rem; color:var(--text-secondary); margin-bottom:4px;">
+          <span>Progress</span>
+          <span>${progress}% (${completedCount}/${steps.length})</span>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-bar-fill" style="width:${progress}%;"></div>
+        </div>
+      </div>
+
+      ${steps.length > 0 ? `
+        <div style="margin-bottom:16px;">
+          <strong>Subtasks / Next Steps:</strong>
+          <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px;">
+            ${steps.map(s => `
+              <label style="display:flex; align-items:center; gap:8px; background:var(--bg-primary); padding:8px 12px; border-radius:6px; cursor:pointer;">
+                <input type="checkbox" ${s.completed ? 'checked' : ''} onchange="UIController.toggleStepItem('${task.id}', '${s.id}')">
+                <span style="${s.completed ? 'text-decoration:line-through; color:var(--text-secondary);' : ''}">${escapeHtml(s.text)}</span>
+              </label>
+            `).join('')}
+          </div>
         </div>
       ` : ''}
 
@@ -294,20 +321,6 @@ const UIController = (() => {
         <div style="margin-bottom:16px;">
           <strong>Contents / Outline:</strong>
           <pre style="white-space:pre-wrap; background:var(--bg-primary); padding:8px; border-radius:4px; font-family:inherit; font-size:0.85rem;">${escapeHtml(task.contents)}</pre>
-        </div>
-      ` : ''}
-
-      ${task.checklist && task.checklist.length > 0 ? `
-        <div style="margin-bottom:16px;">
-          <strong>Checklist (${task.checklist.filter(c => c.completed).length}/${task.checklist.length}):</strong>
-          <div style="margin-top:8px;">
-            ${task.checklist.map((c, idx) => `
-              <div class="checklist-item">
-                <input type="checkbox" ${c.completed ? 'checked' : ''} onchange="UIController.toggleChecklistItem('${task.id}', ${idx})">
-                <span style="${c.completed ? 'text-decoration:line-through; color:var(--text-secondary);' : ''}">${escapeHtml(c.text)}</span>
-              </div>
-            `).join('')}
-          </div>
         </div>
       ` : ''}
 
@@ -328,9 +341,20 @@ const UIController = (() => {
     modalOverlay.classList.remove('hidden');
   }
 
+  async function toggleStepItem(taskId, stepId) {
+    if (TaskManager.toggleStep) {
+      await TaskManager.toggleStep(taskId, stepId);
+    }
+    openTaskDetails(taskId);
+    renderCurrentView();
+  }
+
   async function openTaskModal(taskId = null) {
     let task = taskId ? await StorageManager.getTask(taskId) : TaskManager.createNewTaskObject();
     const categories = TaskManager.getCategories();
+
+    // Clone step data to prevent direct state mutation before explicit save
+    modalSteps = (task.nextSteps || []).map(s => ({ ...s }));
 
     modalContent.innerHTML = `
       <h2>${taskId ? 'Edit Task' : 'New Task'}</h2>
@@ -341,8 +365,9 @@ const UIController = (() => {
         </div>
 
         <div class="form-group">
-          <label>Next Step (Actionable Target)</label>
-          <input type="text" id="form-nextStep" class="form-control" value="${escapeHtml(task.nextStep)}" placeholder="e.g. Call client for feedback">
+          <label>Next Steps / Actionable Targets</label>
+          <div id="modal-steps-list" style="display:flex; flex-direction:column; gap:8px; margin-bottom:8px;"></div>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="UIController.addModalStepInput()">+ Add Step</button>
         </div>
 
         <div class="form-row">
@@ -396,7 +421,37 @@ const UIController = (() => {
         </div>
       </form>
     `;
+
+    renderModalSteps();
     modalOverlay.classList.remove('hidden');
+  }
+
+  function renderModalSteps() {
+    const list = document.getElementById('modal-steps-list');
+    if (!list) return;
+
+    list.innerHTML = modalSteps.map((step, idx) => `
+      <div style="display:flex; gap:8px; align-items:center;">
+        <input type="text" class="form-control" value="${escapeHtml(step.text)}" placeholder="Step description..." oninput="UIController.updateModalStepText(${idx}, this.value)">
+        <button type="button" class="btn btn-danger btn-sm" onclick="UIController.removeModalStep(${idx})">✕</button>
+      </div>
+    `).join('');
+  }
+
+  function addModalStepInput() {
+    modalSteps.push({ id: 'step_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4), text: '', completed: false });
+    renderModalSteps();
+  }
+
+  function updateModalStepText(index, text) {
+    if (modalSteps[index]) {
+      modalSteps[index].text = text;
+    }
+  }
+
+  function removeModalStep(index) {
+    modalSteps.splice(index, 1);
+    renderModalSteps();
   }
 
   async function saveTaskForm(e, taskId) {
@@ -405,7 +460,7 @@ const UIController = (() => {
     if (!task) task = TaskManager.createNewTaskObject({ id: taskId });
 
     task.title = document.getElementById('form-title').value;
-    task.nextStep = document.getElementById('form-nextStep').value;
+    task.nextSteps = modalSteps.filter(s => s.text.trim() !== '');
     task.category = document.getElementById('form-category').value;
     task.priority = document.getElementById('form-priority').value;
     task.status = document.getElementById('form-status').value;
@@ -413,6 +468,10 @@ const UIController = (() => {
     task.description = document.getElementById('form-description').value;
     task.contents = document.getElementById('form-contents').value;
     task.updatedDate = new Date().toISOString();
+
+    if (TaskManager.calculateStepsProgress) {
+      task.progress = TaskManager.calculateStepsProgress(task.nextSteps);
+    }
 
     if (task.status === 'Completed' && !task.completedDate) {
       task.completedDate = new Date().toISOString();
@@ -422,17 +481,6 @@ const UIController = (() => {
     await StorageManager.updateTask(task);
     closeModal();
     renderCurrentView();
-  }
-
-  async function toggleChecklistItem(taskId, index) {
-    const task = await StorageManager.getTask(taskId);
-    if (task && task.checklist && task.checklist[index]) {
-      task.checklist[index].completed = !task.checklist[index].completed;
-      const progress = TaskManager.calculateChecklistProgress(task.checklist);
-      if (progress !== null) task.progress = progress;
-      await StorageManager.updateTask(task);
-      openTaskDetails(taskId);
-    }
   }
 
   async function archiveTask(id) {
@@ -459,7 +507,6 @@ const UIController = (() => {
     viewContainer.innerHTML = `
       <h2>⚙ Settings</h2>
       <div style="max-width:600px; margin-top:16px; display:flex; flex-direction:column; gap:20px;">
-        
         <div class="stat-card">
           <h3>Appearance</h3>
           <div style="margin-top:10px;">
@@ -553,8 +600,11 @@ const UIController = (() => {
     toggleDone,
     openTaskDetails,
     openTaskModal,
+    addModalStepInput,
+    updateModalStepText,
+    removeModalStep,
     saveTaskForm,
-    toggleChecklistItem,
+    toggleStepItem,
     archiveTask,
     deleteTask,
     closeModal,

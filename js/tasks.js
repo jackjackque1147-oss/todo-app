@@ -23,8 +23,26 @@ const TaskManager = (() => {
     }
   }
 
+  /**
+   * Generates a new Task Object with support for multiple next steps/subtasks
+   */
   function createNewTaskObject(data = {}) {
     const now = new Date().toISOString();
+    
+    // Normalizes input steps to ensure correct structure [{ id, text, completed }]
+    const formattedSteps = (data.nextSteps || data.checklist || []).map((step, index) => {
+      if (typeof step === 'string') {
+        return { id: 'step_' + Date.now() + '_' + index, text: step, completed: false };
+      }
+      return {
+        id: step.id || 'step_' + Date.now() + '_' + index,
+        text: step.text || step.title || '',
+        completed: Boolean(step.completed)
+      };
+    });
+
+    const initialProgress = calculateStepsProgress(formattedSteps) ?? (data.progress || 0);
+
     return {
       id: data.id || 'task_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
       title: data.title || '',
@@ -35,21 +53,53 @@ const TaskManager = (() => {
       status: data.status || 'Inbox',
       startDate: data.startDate || '',
       dueDate: data.dueDate || '',
-      nextStep: data.nextStep || '',
+      // Array holding multiple actionable sub-steps
+      nextSteps: formattedSteps,
       notes: data.notes || '',
       tags: data.tags || [],
-      checklist: data.checklist || [],
-      progress: data.progress || 0,
+      progress: initialProgress,
       createdDate: data.createdDate || now,
       updatedDate: now,
       completedDate: data.completedDate || null
     };
   }
 
-  function calculateChecklistProgress(checklist) {
-    if (!checklist || checklist.length === 0) return null;
-    const completed = checklist.filter(item => item.completed).length;
-    return Math.round((completed / checklist.length) * 100);
+  /**
+   * Calculates completion progress percentage from step array
+   */
+  function calculateStepsProgress(nextSteps) {
+    if (!nextSteps || nextSteps.length === 0) return 0;
+    const completed = nextSteps.filter(step => step.completed).length;
+    return Math.round((completed / nextSteps.length) * 100);
+  }
+
+  /**
+   * Toggles an individual step within a task and recalculates progress
+   */
+  async function toggleStep(taskId, stepId) {
+    const task = await StorageManager.getTask(taskId);
+    if (!task || !task.nextSteps) return null;
+
+    const step = task.nextSteps.find(s => s.id === stepId);
+    if (step) {
+      step.completed = !step.completed;
+      
+      // Update task progress based on new step state
+      task.progress = calculateStepsProgress(task.nextSteps);
+      
+      // Auto-complete task when all steps are done
+      if (task.progress === 100) {
+        task.status = 'Completed';
+        task.completedDate = new Date().toISOString();
+      } else if (task.status === 'Completed' && task.progress < 100) {
+        task.status = 'In Progress';
+        task.completedDate = null;
+      }
+
+      task.updatedDate = new Date().toISOString();
+      await StorageManager.updateTask(task);
+    }
+    return task;
   }
 
   function isOverdue(task) {
@@ -67,12 +117,15 @@ const TaskManager = (() => {
     if (task.status === 'Completed') {
       task.status = 'In Progress';
       task.completedDate = null;
+      task.progress = calculateStepsProgress(task.nextSteps);
     } else {
       task.status = 'Completed';
       task.completedDate = new Date().toISOString();
       task.progress = 100;
-      if (task.checklist && task.checklist.length > 0) {
-        task.checklist.forEach(i => i.completed = true);
+      
+      // Mark all inner sub-steps as completed
+      if (task.nextSteps && task.nextSteps.length > 0) {
+        task.nextSteps.forEach(s => s.completed = true);
       }
     }
     task.updatedDate = new Date().toISOString();
@@ -84,7 +137,8 @@ const TaskManager = (() => {
     getCategories,
     addCategory,
     createNewTaskObject,
-    calculateChecklistProgress,
+    calculateStepsProgress,
+    toggleStep,
     isOverdue,
     markAsDone
   };

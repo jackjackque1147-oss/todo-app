@@ -1,107 +1,135 @@
-<!DOCTYPE html>
-<html lang="en" data-theme="system">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TaskFlow PWA</title>
-  <link rel="stylesheet" href="./css/style.css">
-  <link rel="manifest" href="./manifest.json">
-  <meta name="theme-color" content="#2563eb">
-</head>
-<body>
-  <div id="app" class="app-layout">
-    <aside id="sidebar" class="sidebar">
-      <div class="sidebar-header">
-        <div class="brand">
-          <svg class="icon-logo" viewBox="0 0 24 24"><path fill="currentColor" d="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M10,17L5,12L6.41,10.59L10,14.17L17.59,6.58L19,8L10,17Z"/></svg>
-          <h2>TaskFlow</h2>
-        </div>
-      </div>
-      <nav class="sidebar-nav">
-        <button class="nav-btn active" data-view="dashboard">
-          <svg class="icon" viewBox="0 0 24 24"><path fill="currentColor" d="M13,3V9H21V3M13,21H21V11H13M3,21H11V15H3M3,13H11V3H3V13Z"/></svg>
-          Dashboard
-        </button>
-        <button class="nav-btn" data-view="tasks">
-          <svg class="icon" viewBox="0 0 24 24"><path fill="currentColor" d="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M10,17L5,12L6.41,10.59L10,14.17L17.59,6.58L19,8L10,17Z"/></svg>
-          All Tasks
-        </button>
-        <button class="nav-btn" data-view="next-actions">
-          <svg class="icon" viewBox="0 0 24 24"><path fill="currentColor" d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M12,6A6,6 0 0,1 18,12A6,6 0 0,1 12,18A6,6 0 0,1 6,12A6,6 0 0,1 12,6M12,8A4,4 0 0,0 8,12A4,4 0 0,0 12,16A4,4 0 0,0 16,12A4,4 0 0,0 12,8Z"/></svg>
-          Next Actions
-        </button>
-        <button class="nav-btn" data-view="completed">
-          <svg class="icon" viewBox="0 0 24 24"><path fill="currentColor" d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M10,17L5,12L6.41,10.59L10,14.17L17.59,6.58L19,8L10,17Z"/></svg>
-          Completed
-        </button>
-        <button class="nav-btn" data-view="archived">
-          <svg class="icon" viewBox="0 0 24 24"><path fill="currentColor" d="M3,3H21V7H3V3M4,8H20V21H4V8M9.5,11A0.5,0.5 0 0,0 9,11.5V13H15V11.5A0.5,0.5 0 0,0 14.5,11H9.5Z"/></svg>
-          Archive
-        </button>
-        <button class="nav-btn" data-view="settings">
-          <svg class="icon" viewBox="0 0 24 24"><path fill="currentColor" d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/></svg>
-          Settings
-        </button>
-      </nav>
-      <div class="sidebar-section">
-        <h3>Categories</h3>
-        <div id="category-list" class="category-list"></div>
-      </div>
-    </aside>
+/**
+ * Business Logic & Task Operations Manager
+ */
+const TaskManager = (() => {
+  const DEFAULT_CATEGORIES = ['Work', 'Personal', 'Projects', 'Programming', 'Website', 'Finance', 'Ideas', 'Other'];
 
-    <main class="main-content">
-      <header class="top-bar">
-        <div class="search-box">
-          <svg class="icon" viewBox="0 0 24 24"><path fill="currentColor" d="M9.5,3A6.5,6.5 0 0,1 16,9.5C16,11.11 15.41,12.59 14.44,13.73L14.71,14H15.5L20.5,19L19,20.5L14,15.5V14.71L13.73,14.44C12.59,15.41 11.11,16 9.5,16A6.5,6.5 0 0,1 3,9.5A6.5,6.5 0 0,1 9.5,3M9.5,5C7,5 5,7 5,9.5C5,12 7,14 9.5,14C12,14 14,12 14,9.5C14,7 12,5 9.5,5Z"/></svg>
-          <input type="text" id="global-search" placeholder="Search tasks, next steps, tags... ( / )">
-        </div>
-        <div class="top-actions">
-          <button id="pwa-install-btn" class="btn btn-secondary hidden">
-            📱 Install App
-          </button>
-          <button id="quick-add-btn" class="btn btn-primary">
-            ➕ New Task
-          </button>
-        </div>
-      </header>
+  function initCategories() {
+    if (!localStorage.getItem('todo_categories')) {
+      localStorage.setItem('todo_categories', JSON.stringify(DEFAULT_CATEGORIES));
+    }
+  }
 
-      <section id="view-container" class="view-container">
-        <!-- Views rendered dynamically -->
-      </section>
-    </main>
+  function getCategories() {
+    initCategories();
+    return JSON.parse(localStorage.getItem('todo_categories'));
+  }
 
-    <nav class="bottom-nav">
-      <button class="bottom-btn active" data-view="dashboard">
-        <svg class="icon" viewBox="0 0 24 24"><path fill="currentColor" d="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z"/></svg>
-        <span>Home</span>
-      </button>
-      <button class="bottom-btn" data-view="tasks">
-        <svg class="icon" viewBox="0 0 24 24"><path fill="currentColor" d="M19,3H5C3.89,3 3,3.89 3,5V19A2,2 0 0,0 5,21H19A2,2 0 0,0 21,19V5C21,3.89 20.1,3 19,3M10,17L5,12L6.41,10.59L10,14.17L17.59,6.58L19,8L10,17Z"/></svg>
-        <span>Tasks</span>
-      </button>
-      <button class="bottom-btn add-btn" id="mobile-add-btn">
-        <div class="add-icon-circle">➕</div>
-      </button>
-      <button class="bottom-btn" data-view="next-actions">
-        <svg class="icon" viewBox="0 0 24 24"><path fill="currentColor" d="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4Z"/></svg>
-        <span>Next</span>
-      </button>
-      <button class="bottom-btn" data-view="settings">
-        <svg class="icon" viewBox="0 0 24 24"><path fill="currentColor" d="M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.68 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z"/></svg>
-        <span>Settings</span>
-      </button>
-    </nav>
-  </div>
+  function addCategory(cat) {
+    const cats = getCategories();
+    if (cat && !cats.includes(cat)) {
+      cats.push(cat);
+      localStorage.setItem('todo_categories', JSON.stringify(cats));
+    }
+  }
 
-  <!-- Modal Container -->
-  <div id="modal-overlay" class="modal-overlay hidden">
-    <div id="modal-content" class="modal-content"></div>
-  </div>
+  function createNewTaskObject(data = {}) {
+    const now = new Date().toISOString();
 
-  <script src="./js/db.js"></script>
-  <script src="./js/tasks.js"></script>
-  <script src="./js/ui.js"></script>
-  <script src="./js/pwa.js"></script>
-  <script src="./js/app.js"></script>
-</body>
-</html>
+    // Format steps / checklist array
+    let rawSteps = data.nextSteps || data.checklist || [];
+    if (data.nextStep && typeof data.nextStep === 'string' && data.nextStep.trim() !== '') {
+      rawSteps.push({ id: 'step_' + Date.now(), text: data.nextStep, completed: false });
+    }
+
+    const formattedSteps = rawSteps.map((step, index) => {
+      if (typeof step === 'string') {
+        return { id: 'step_' + Date.now() + '_' + index, text: step, completed: false };
+      }
+      return {
+        id: step.id || 'step_' + Date.now() + '_' + index,
+        text: step.text || step.title || '',
+        completed: Boolean(step.completed)
+      };
+    });
+
+    const calculatedProgress = calculateChecklistProgress(formattedSteps);
+
+    return {
+      id: data.id || 'task_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+      title: data.title || '',
+      description: data.description || '',
+      contents: data.contents || '',
+      category: data.category || 'Personal',
+      priority: data.priority || 'Medium',
+      status: data.status || 'Inbox',
+      startDate: data.startDate || '',
+      dueDate: data.dueDate || '',
+      nextSteps: formattedSteps,
+      notes: data.notes || '',
+      tags: data.tags || [],
+      progress: calculatedProgress,
+      createdDate: data.createdDate || now,
+      updatedDate: now,
+      completedDate: data.completedDate || null
+    };
+  }
+
+  function calculateChecklistProgress(checklist) {
+    if (!checklist || checklist.length === 0) return 0;
+    const completed = checklist.filter(item => item.completed).length;
+    return Math.round((completed / checklist.length) * 100);
+  }
+
+  async function toggleSubtask(taskId, stepId) {
+    const task = await StorageManager.getTask(taskId);
+    if (!task || !task.nextSteps) return null;
+
+    const step = task.nextSteps.find(s => s.id === stepId);
+    if (step) {
+      step.completed = !step.completed;
+      task.progress = calculateChecklistProgress(task.nextSteps);
+
+      if (task.progress === 100) {
+        task.status = 'Completed';
+        task.completedDate = new Date().toISOString();
+      } else if (task.status === 'Completed' && task.progress < 100) {
+        task.status = 'In Progress';
+        task.completedDate = null;
+      }
+
+      task.updatedDate = new Date().toISOString();
+      await StorageManager.updateTask(task);
+    }
+    return task;
+  }
+
+  function isOverdue(task) {
+    if (!task.dueDate || task.status === 'Completed' || task.status === 'Archived') return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const due = new Date(task.dueDate);
+    return due < today;
+  }
+
+  async function markAsDone(taskId) {
+    const task = await StorageManager.getTask(taskId);
+    if (!task) return;
+
+    if (task.status === 'Completed') {
+      task.status = 'In Progress';
+      task.completedDate = null;
+      task.progress = calculateChecklistProgress(task.nextSteps);
+    } else {
+      task.status = 'Completed';
+      task.completedDate = new Date().toISOString();
+      task.progress = 100;
+      if (task.nextSteps && task.nextSteps.length > 0) {
+        task.nextSteps.forEach(i => i.completed = true);
+      }
+    }
+    task.updatedDate = new Date().toISOString();
+    await StorageManager.updateTask(task);
+    return task;
+  }
+
+  return {
+    getCategories,
+    addCategory,
+    createNewTaskObject,
+    calculateChecklistProgress,
+    toggleSubtask,
+    isOverdue,
+    markAsDone
+  };
+})();
