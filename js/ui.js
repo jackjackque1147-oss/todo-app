@@ -9,7 +9,7 @@ const UIController = (() => {
   let activeFilterPriority = 'All';
   let activeSort = 'recently-created';
 
-  // Temporary container for subtasks inside creation/edit modal
+  // Temporary container for subtasks while creating/editing a task in the modal
   let modalSteps = [];
 
   const viewContainer = document.getElementById('view-container');
@@ -361,7 +361,6 @@ const UIController = (() => {
     let task = taskId ? await StorageManager.getTask(taskId) : TaskManager.createNewTaskObject();
     const categories = TaskManager.getCategories();
 
-    // Populate modalSteps with existing tasks or start with one empty input field
     modalSteps = (task.nextSteps && task.nextSteps.length > 0)
       ? task.nextSteps.map(s => ({ ...s }))
       : [{ id: 'step_' + Date.now() + '_0', text: '', completed: false }];
@@ -483,7 +482,6 @@ const UIController = (() => {
     e.preventDefault();
     let task = await StorageManager.getTask(taskId);
 
-    // Sync input values from the DOM into step structure
     syncModalStepsFromDOM();
 
     const formTitle = document.getElementById('form-title').value;
@@ -510,7 +508,6 @@ const UIController = (() => {
       completedDate: (formStatus === 'Completed') ? (task?.completedDate || new Date().toISOString()) : null
     };
 
-    // Use task builder to enforce normalized properties and calculate initial progress
     const updatedTask = TaskManager.createNewTaskObject(taskData);
 
     await StorageManager.updateTask(updatedTask);
@@ -579,7 +576,6 @@ const UIController = (() => {
   }
 
   function setTheme(theme) {
-    localStorage.getItem('todo_theme');
     localStorage.setItem('todo_theme', theme);
     document.documentElement.setAttribute('data-theme', theme);
   }
